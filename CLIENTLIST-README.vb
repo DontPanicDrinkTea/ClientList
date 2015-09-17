@@ -64,6 +64,8 @@ ByVal lpDirectory As String, _
 ByVal nShowCmd As Long) _
 As Long
 
+
+
 Function FolderCreate(ByVal path As String) As Boolean
     FolderCreate = True
     Dim fso As New FileSystemObject
@@ -258,7 +260,7 @@ Sub SetIA(ianame)
         Set ia_email = iatable(y(x), ia_email_col)
         Set cc_email = iatable(y(x), cc_email_col)
         
-        ia_firststr = ia_ia.Value
+        ia_firststr = ia_first.Value
         ia_emailstr = ia_email.Value
         cc_emailstr = cc_email.Value
         If ia_emailstr = "" Then
@@ -276,7 +278,7 @@ Sub SetFilters(colnum)
     
     c_ws.ListObjects("Table6").Range.AutoFilter Field:=7, Criteria1:= _
         "<>"
-    c_ws.ListObjects("Table6").Range.AutoFilter Field:=colnum, Criteria1:="y"
+    c_ws.ListObjects("Table6").Range.AutoFilter Field:=colnum, Criteria1:="bw"
 End Sub
 
 Sub ClearFilters()
@@ -470,3 +472,83 @@ Sub FinalizeAndPrint()
     Application.DisplayAlerts = True
     Application.ScreenUpdating = True
 End Sub
+
+Sub CheckupEmail()
+    Dim OutApp As Object
+    Dim OutMail As Object
+    
+    Dim ai As Integer
+    Dim bi As Integer
+    Dim vcells() As Integer
+  
+    Application.ScreenUpdating = False
+    
+    Call InitializeTables
+    Call SetFilters(c_print_col)
+    vcells = c_VCIndex(c_print_col)
+    
+    'email to send
+    For ai = 1 To UBound(vcells)
+    
+    Set OutApp = CreateObject("Outlook.Application")
+    Set OutMail = OutApp.CreateItem(0)
+    
+        Call InitializeClients(vcells(ai))
+        Call SetIA(c_ia1.Value)
+        With OutMail
+            .To = ia_emailstr
+            .CC = cc_emailstr & "; sharon.avery@rbc.com; melissa.picheca@rbc.com"
+            .BCC = ""
+            .Subject = lastnames & " Sent Will & Estate Consultation Report"
+            .HTMLBody = "<p><font face=""Calibri"" size=""3"">Hello " & ia_firststr & ",<br><br>" _
+                & "You may have already received this, but I wanted to let you know that I have sent you a re-dated colour copy of Sharon’s Will & Estate Planning Report generated from her meeting with <b>" & fullnames & "</b>. Please confirm whether this has been received (if you haven't already). If this report has not yet been received, please let me know as soon as possible, and I will rush another colour copy to you.<br>" _
+                & "Thank you very much for your help,<br><br><br>" _
+                & "<b>Eva Smith</b> | Regional Administrative Coordinator | Atlantic Region | Wealth Management Services I Tel: (902) 494-5699 | <b>RBC Dominion Securities</b></font></p>"
+            .Attachments.Add (reportpdf_path)
+            .Attachments.Add (conf_path)
+            .Attachments.Add (tocpdf_path)
+            .Display
+        End With
+        Set OutMail = Nothing
+        Set OutApp = Nothing
+        conf.Value = Date
+    Next ai
+            
+        On Error GoTo 0
+            
+        With Application
+            .ScreenUpdating = True
+            .EnableEvents = True
+        End With
+
+    Call ClearFilters
+    
+    Application.ScreenUpdating = True
+
+End Sub
+Sub PrintJustThisLetter()
+    Dim ai As Integer
+    Dim bi As Integer
+    Dim vcells() As Integer
+    Dim cprint As String
+    
+    Application.DisplayAlerts = False
+    Application.ScreenUpdating = False
+
+    Call InitializeTables
+    Call SetFilters(c_print_col)
+    vcells = c_VCIndex(c_print_col)
+
+    For ai = 1 To UBound(vcells)
+        Call InitializeClients(vcells(ai))
+        PrintFile (reportpdf_path)
+        Application.Wait (Now + TimeValue("0:00:10"))
+        PrintFile (tocpdf_path)
+        Application.Wait (Now + TimeValue("0:00:10"))
+        PrintFile (conf_path)
+        Application.Wait (Now + TimeValue("0:00:10"))
+    Next ai
+    
+End Sub
+
+
