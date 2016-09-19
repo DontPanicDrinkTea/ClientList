@@ -1,6 +1,10 @@
 'CLIENT LIST
+'For all the subs and such that need to take place in the client record sheet
+'For auto-creation of client reports, appointment confirmation emails, and report confirmation emails
+
 Option Explicit
 
+'These variables get used a ton
 Public dateval As String, myear As String, hlpath As String
 
 Public ia_firststr As String, ia_emailstr As String, cc_emailstr As String
@@ -12,6 +16,7 @@ mtype As Range, c_email As Range, c_print As Range, c_draft As Range, _
 c_edit As Range, c_approve As Range, c_sdrive As Range, c_meth As Range, _
 c_sent As Range, c_location As Range, c_notes As Range, c_prov As Range, c_city As Range
 
+'This sets up the column numbers for info in each record
 Public Const cnum_col = 1
 Public Const dfolder_col = 2
 Public Const lname1_col = 3
@@ -37,6 +42,7 @@ Public Const c_notes_col = 22
 Public Const c_prov_col = 23
 Public Const c_city_col = 24
 
+'ia = Investment Advisor. There was a separate table with relevant info on each one.
 Public iatable As Range, ia_ia As Range, ia_first As Range, ia_email As Range, cc_email As Range
 
 Public Const ia_ia_col = 4
@@ -44,10 +50,12 @@ Public Const ia_first_col = 2
 Public Const ia_email_col = 5
 Public Const cc_email_col = 6
 
+'declaring client worksheet and IA worksheet
 Public c_ws As Worksheet, ia_ws As Worksheet
 
 Public c_rownum As Integer, ia_rownum As Integer
 
+'I was just kind of lazy here, tbh.
 Public i As Integer, j As Integer, k As Integer
 
 Public lastnames As String, fullnames As String
@@ -55,6 +63,7 @@ Public lastnames As String, fullnames As String
 Public folder_path As String, conf_path As String, tocpdf_path As String, tocxl_path As String, _
 reportpdf_path As String, reportdoc_path As String
 
+'this will be used later to open the different applications--but I don't know what the file names of those will be quite yet
 Declare Function apiShellExecute Lib "shell32.dll" Alias "ShellExecuteA" ( _
 ByVal hwnd As Long, _
 ByVal lpOperation As String, _
@@ -64,8 +73,8 @@ ByVal lpDirectory As String, _
 ByVal nShowCmd As Long) _
 As Long
 
-
-
+'To make a nice pretty folder to keep all these files I'm creating in
+'Not gonna lie, I copied a lot of this part
 Function FolderCreate(ByVal path As String) As Boolean
     FolderCreate = True
     Dim fso As New FileSystemObject
@@ -84,6 +93,7 @@ DeadInTheWater:
         Exit Function
 End Function
 
+'to check if a particular folder already exists
 Function FolderExists(ByVal path As String) As Boolean
     FolderExists = False
     Dim fso As New FileSystemObject
@@ -91,10 +101,12 @@ Function FolderExists(ByVal path As String) As Boolean
     If fso.FolderExists(path) Then FolderExists = True
 End Function
 
+'to print specific files
 Public Sub PrintFile(ByVal strPathAndFilename As String)
     Call apiShellExecute(Application.hwnd, "print", strPathAndFilename, vbNullString, vbNullString, 0)
 End Sub
 
+'to give some values to those bajillion public ranges set above
 Public Sub InitializeTables()
     Set c_ws = ThisWorkbook.Worksheets("Clients")
     Set ia_ws = ThisWorkbook.Worksheets("Advisors")
@@ -104,6 +116,8 @@ Public Sub InitializeTables()
     c_rownum = ctable.Rows.Count
     ia_rownum = iatable.Rows.Count
 End Sub
+
+'This is just a roundabout way of pinpointing a particular record without having to loop
 Function c_VCIndex(colnum As Integer) As Integer()
     Dim r As Range
     Dim splitr As Range
@@ -115,16 +129,16 @@ Function c_VCIndex(colnum As Integer) As Integer()
     Dim arr() As Integer
     
     Set r = ctable.Columns(colnum)
-    If r.SpecialCells(xlCellTypeVisible).Count > 0 Then
-        Set splitr = r.SpecialCells(xlCellTypeVisible)
-        ccount = splitr.Count
+    If r.SpecialCells(xlCellTypeVisible).Count > 0 Then 'see if there are any matching records
+        Set splitr = r.SpecialCells(xlCellTypeVisible) 'split ranges is now made up of all matching records, whether they're continuous or not.
+        ccount = splitr.Count 'count how many ranges are included
         ReDim Preserve arr(1 To ccount)
         i = 1
         For Each c In splitr
             arr(i) = c.Row - 1
             i = i + 1
         Next c
-        c_VCIndex = arr()
+        c_VCIndex = arr() ' add the row number to an array
     ElseIf r.SpecialCells(xlCellTypeVisible).Count = 0 Then
         MsgBox "No Records Available"
         End
@@ -195,6 +209,7 @@ End Sub
 Public Sub InitializeClients(i)
     Call InitializeTables
 
+'set up all the bajillion variables and such
     Set cnum = ctable(i, cnum_col)
     Set dfolder = ctable(i, dfolder_col)
     Set lname1 = ctable(i, lname1_col)
@@ -220,6 +235,7 @@ Public Sub InitializeClients(i)
     Set c_prov = ctable(i, c_prov_col)
     Set c_city = ctable(i, c_city_col)
 
+'meeting date
     dateval = mdate.Value
 
     If dateval = "" Then
@@ -227,7 +243,8 @@ Public Sub InitializeClients(i)
     Else
         myear = CStr(year(dateval))
     End If
-    
+
+'Full names to use in confirmation emails, reports:    
     If lname2.Value <> "" And lname2.Value <> lname1.Value Then
         lastnames = lname1.Value & "," & lname2.Value
         fullnames = fname1.Value & " " & lname1.Value & " and " & fname2.Value & " " & lname2.Value
@@ -238,7 +255,8 @@ Public Sub InitializeClients(i)
         lastnames = lname1.Value
         fullnames = fname1.Value & " " & lname1.Value
     End If
-    
+
+'names for files and folders related to meetings are all based on client names, so this is to set those up.
     folder_path = "Z:\wrkgrp80\GR_WILL_ESTATE\SAvery\Client Files\" & myear & "\" & cnum & " - " & lastnames
     conf_path = folder_path & "\" & lastnames & "Conf.pdf"
     tocpdf_path = folder_path & "\" & lastnames & "TOCNEW.pdf"
@@ -247,7 +265,9 @@ Public Sub InitializeClients(i)
     reportdoc_path = folder_path & "\" & lastnames & "Report - FinalNEW.docx"
 
 End Sub
+
 Sub SetIA(ianame)
+    'names and email for ia emails
     Dim x As Integer
     Dim y() As Integer
     Call InitializeTables
@@ -289,6 +309,7 @@ Sub ClearFilters()
 End Sub
 
 Sub hyperlinks()
+'create hyperlink in spreadsheet to open client record folder
     Dim ai As Integer
     Dim bi As Integer
     Dim vcells() As Integer
@@ -323,6 +344,7 @@ Sub hyperlinks()
 End Sub
 
 Sub SendConfirmation()
+'here's the actual meeting confirmation for IAs
     Dim OutApp As Object
     Dim OutMail As Object
     
@@ -332,9 +354,10 @@ Sub SendConfirmation()
   
     Application.ScreenUpdating = False
     
+    'initialize the bajillion variables
     Call InitializeTables
     Call SetFilters(conf_col)
-    vcells = c_VCIndex(conf_col)
+    vcells = c_VCIndex(conf_col) 'array of cell indexes of records where a meeting confirmation is required
     
     'email to send
     For ai = 1 To UBound(vcells)
@@ -387,6 +410,7 @@ Sub SendConfirmation()
 
 End Sub
 Sub EmailReport()
+'email for IA's including report once they were finished.
     Dim OutApp As Object
     Dim OutMail As Object
     
@@ -398,7 +422,7 @@ Sub EmailReport()
     
     Call InitializeTables
     Call SetFilters(c_email_col)
-    vcells = c_VCIndex(c_email_col)
+    vcells = c_VCIndex(c_email_col) 'array of cell indexes for records that require report confirmation
     
     'email to send
     For ai = 1 To UBound(vcells)
@@ -423,6 +447,7 @@ Sub EmailReport()
             .Attachments.Add (tocpdf_path)
             .Display
         End With
+        'clear all the (email) things before going on to the next
         Set OutMail = Nothing
         Set OutApp = Nothing
         conf.Value = Date
@@ -442,6 +467,7 @@ Sub EmailReport()
 End Sub
 
 Sub FinalizeAndPrint()
+'for reports that are complete but need to be printed and sent
     Dim objWord
     Dim objDoc
     Dim ai As Integer
@@ -456,15 +482,16 @@ Sub FinalizeAndPrint()
     Call SetFilters(c_print_col)
     vcells = c_VCIndex(c_print_col)
     
+    'creates a MS Word object
     Set objWord = CreateObject("Word.Application")
 
     For ai = 1 To UBound(vcells)
         cprint = ""
-        Call InitializeClients(vcells(ai))
-        cprint = reportpdf_path & "," & conf_path & "," & tocpdf_path
+        Call InitializeClients(vcells(ai)) ' initialze variables just for reports that need to be printed
+        cprint = reportpdf_path & "," & conf_path & "," & tocpdf_path 'list of documents to be printed for one client
         Set objDoc = objWord.Documents.Open(reportdoc_path)
         
-        objWord.Visible = True
+        objWord.Visible = True 'open word and run subs from there, and create a list of headings in report for use in the Table of Contents worksheet
         objDoc.Application.Run "WEC1.GetHeadings", c_prov.Value, c_city.Value, conf_path, tocpdf_path, tocxl_path, reportpdf_path, cprint
     Next ai
     Call ClearFilters
@@ -527,6 +554,8 @@ Sub CheckupEmail()
 
 End Sub
 Sub PrintJustThisLetter()
+
+'just messing around to try and fix documents not printing in the correct order
     Dim ai As Integer
     Dim bi As Integer
     Dim vcells() As Integer
